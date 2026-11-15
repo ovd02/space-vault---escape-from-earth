@@ -5,38 +5,27 @@ extends Control
 # SPACE VAULT - MISSION RESULTS
 # Godot 4.7
 #
-# REDESIGNED CINEMATIC ENDING
+# COMPLETE SCRIPT
 #
-# Preserved:
 # - Mission engineering calculations
 # - NASA-linked MissionSimulation
 # - Spacecraft configuration results
 # - Scientist progression requirements
 # - Matcha engineering assessment
-# - Mission debrief screen
-# - VIEW ENDING button
-# - Return to mission debrief
-#
-# Improved:
-# - Cleaner cinematic ending composition
-# - Large animated Joe Peng
-# - Smaller atmospheric Earth
-# - Properly aligned title and dialogue
-# - No overlapping portrait or text
-# - Dedicated Matcha message area
-# - Compact return button
-#
-# FILE:
-# res://scripts/spacecraft/MissionResults.gd
-# ============================================================
-
-
-# ============================================================
-# PATHS
+# - Mission debrief
+# - VIEW ENDING
+# - Cinematic ending with animated Joe
+# - RETURN TO DEBRIEF
+# - NEW: RETURN TO MAIN MENU
+# - Smooth fade to black before main menu
 # ============================================================
 
 const PREFLIGHT_SCENE: String = (
 	"res://scenes/spacecraft/EscapeLaunch.tscn"
+)
+
+const MAIN_MENU_SCENE: String = (
+	"res://Main menu/node_2d.tscn"
 )
 
 const JOE_IDLE_PATH: String = (
@@ -47,17 +36,7 @@ const JOE_STATIC_PATH: String = (
 	"res://assets/battles/characters/joe_peng/joe_peng.png"
 )
 
-
-# ============================================================
-# SCREEN
-# ============================================================
-
 const SCREEN_SIZE: Vector2 = Vector2(640, 360)
-
-
-# ============================================================
-# COLOURS
-# ============================================================
 
 const BG: Color = Color("#091524")
 const HEADER: Color = Color("#10243a")
@@ -67,22 +46,12 @@ const BORDER: Color = Color("#29445c")
 const WHITE: Color = Color("#eaf6ff")
 const MUTED: Color = Color("#a5b9cc")
 const ACCENT: Color = Color("#50d4e8")
-
 const GOOD: Color = Color("#7deda4")
 const BAD: Color = Color("#ff8a8a")
 const WARNING: Color = Color("#ffca70")
 
-
-# ============================================================
-# MISSION PARAMETERS
-# ============================================================
-
-# Existing simplified gameplay scenarios.
-# Not literal NASA mission requirements.
-
 const ECLIPSE_MINUTES: float = 35.0
 const MASS_LIMIT_KG: float = 500.0
-
 const OBSERVATION_MINUTES: float = 20.0
 const CONTACT_MINUTES: float = 6.0
 const REQUIRED_DATA_MB: float = 15.0
@@ -96,9 +65,8 @@ const REQUIRED_CATEGORIES: Array[String] = [
 	"fuel"
 ]
 
-
 # ============================================================
-# SPACE BACKGROUND FOR ENDING
+# CINEMATIC SPACE BACKGROUND
 # ============================================================
 
 class CinematicSpace:
@@ -114,15 +82,12 @@ class CinematicSpace:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		queue_redraw()
 
-
 	func _draw() -> void:
-		# Base background
 		draw_rect(
 			Rect2(0, 0, 640, 360),
 			SPACE_BG
 		)
 
-		# Subtle horizontal atmosphere-like tint
 		draw_rect(
 			Rect2(0, 0, 640, 145),
 			SPACE_DEEP
@@ -136,7 +101,6 @@ class CinematicSpace:
 		_draw_stars()
 		_draw_earth()
 		_draw_horizon()
-
 
 	func _draw_stars() -> void:
 		var stars: Array[Vector2] = [
@@ -180,13 +144,9 @@ class CinematicSpace:
 				Color(0.85, 0.93, 1.0, opacity)
 			)
 
-
 	func _draw_earth() -> void:
-		# Earth is deliberately smaller than
-		# the title and main character.
 		var centre: Vector2 = Vector2(520, 94)
 
-		# Atmospheric glow
 		draw_circle(
 			centre,
 			76.0,
@@ -205,14 +165,12 @@ class CinematicSpace:
 			Color("#5c9bd7", 0.18)
 		)
 
-		# Planet surface
 		draw_circle(
 			centre,
 			56.0,
 			EARTH_OCEAN
 		)
 
-		# Stylised land, kept within sphere
 		draw_colored_polygon(
 			PackedVector2Array([
 				Vector2(493, 55),
@@ -250,7 +208,6 @@ class CinematicSpace:
 			EARTH_LAND
 		)
 
-		# Clouds
 		draw_line(
 			Vector2(471, 91),
 			Vector2(501, 91),
@@ -272,7 +229,6 @@ class CinematicSpace:
 			2.0
 		)
 
-		# Dark shading over right hemisphere
 		draw_arc(
 			centre,
 			51.0,
@@ -283,7 +239,6 @@ class CinematicSpace:
 			8.0
 		)
 
-		# Thin atmospheric edge
 		draw_arc(
 			centre,
 			57.0,
@@ -294,10 +249,7 @@ class CinematicSpace:
 			1.5
 		)
 
-
 	func _draw_horizon() -> void:
-		# Subtle visual separation underneath
-		# the title and character.
 		draw_line(
 			Vector2(35, 152),
 			Vector2(605, 152),
@@ -305,7 +257,6 @@ class CinematicSpace:
 			1.0
 		)
 
-		# Floor shadow behind Joe
 		draw_colored_polygon(
 			PackedVector2Array([
 				Vector2(56, 286),
@@ -316,19 +267,16 @@ class CinematicSpace:
 			Color("#112337", 0.45)
 		)
 
-
 # ============================================================
 # GAME STATE
 # ============================================================
 
 var mission_passed: bool = false
-
 var stats: Dictionary = {}
 var results: Dictionary = {}
 
 var ending_open: bool = false
 var ending_transition: bool = false
-
 
 # ============================================================
 # MAIN UI
@@ -345,7 +293,6 @@ var back_button: Button
 var recheck_button: Button
 var ending_button: Button
 
-
 # ============================================================
 # ENDING UI
 # ============================================================
@@ -354,6 +301,7 @@ var ending_overlay: Control
 var ending_joe: AnimatedSprite2D
 var ending_static_joe: Sprite2D
 
+var menu_fade: ColorRect
 
 # ============================================================
 # READY
@@ -372,9 +320,7 @@ func _ready() -> void:
 
 	_build_interface()
 	_build_ending()
-
 	_refresh_results()
-
 
 # ============================================================
 # UI HELPERS
@@ -527,7 +473,6 @@ func _button(
 
 	return button
 
-
 # ============================================================
 # BUILD MISSION DEBRIEF
 # ============================================================
@@ -543,7 +488,6 @@ func _build_interface() -> void:
 		Control.PRESET_FULL_RECT
 	)
 
-	# Header
 	_panel(
 		self,
 		Vector2(8, 8),
@@ -582,7 +526,6 @@ func _build_interface() -> void:
 		HORIZONTAL_ALIGNMENT_RIGHT
 	)
 
-	# Spacecraft summary
 	_panel(
 		self,
 		Vector2(8, 65),
@@ -621,7 +564,6 @@ func _build_interface() -> void:
 		HORIZONTAL_ALIGNMENT_RIGHT
 	)
 
-	# Engineering checks
 	_create_result_card(
 		"power",
 		"01",
@@ -652,7 +594,6 @@ func _build_interface() -> void:
 		MUTED
 	)
 
-	# Matcha assessment
 	_panel(
 		self,
 		Vector2(8, 264),
@@ -711,7 +652,6 @@ func _build_interface() -> void:
 	ending_button.pressed.connect(
 		_open_ending
 	)
-
 
 # ============================================================
 # RESULT CARDS
@@ -783,9 +723,7 @@ func _set_result_card(
 	var detail_label: Label = entry["detail"]
 
 	state_label.text = (
-		"PASS"
-		if passed
-		else "FAIL"
+		"PASS" if passed else "FAIL"
 	)
 
 	state_label.add_theme_color_override(
@@ -794,7 +732,6 @@ func _set_result_card(
 	)
 
 	detail_label.text = detail_text
-
 
 # ============================================================
 # ENGINEERING CHECKS
@@ -806,9 +743,7 @@ func _has_all_components() -> bool:
 	)
 
 	for category in REQUIRED_CATEGORIES:
-		if str(
-			equipped.get(category, "")
-		).is_empty():
+		if str(equipped.get(category, "")).is_empty():
 			return false
 
 	return true
@@ -821,18 +756,14 @@ func _refresh_results() -> void:
 		SpacecraftGameState.simulator
 	)
 
-	var eclipse: Dictionary = (
-		simulator.check_eclipse(
-			stats,
-			ECLIPSE_MINUTES
-		)
+	var eclipse: Dictionary = simulator.check_eclipse(
+		stats,
+		ECLIPSE_MINUTES
 	)
 
-	var launch: Dictionary = (
-		simulator.check_launch(
-			stats,
-			MASS_LIMIT_KG
-		)
+	var launch: Dictionary = simulator.check_launch(
+		stats,
+		MASS_LIMIT_KG
 	)
 
 	var communications: Dictionary = (
@@ -908,7 +839,6 @@ func _refresh_results() -> void:
 	)
 
 	ending_button.disabled = not mission_passed
-
 
 # ============================================================
 # MISSION SUMMARY
@@ -1039,7 +969,6 @@ func _update_communications_card(
 		]
 	)
 
-
 # ============================================================
 # MATCHA ASSESSMENT
 # ============================================================
@@ -1103,14 +1032,12 @@ func _update_matcha(
 			+ "Review communications."
 		)
 
-
 # ============================================================
-# REDESIGNED CINEMATIC ENDING
+# CINEMATIC ENDING
 # ============================================================
 
 func _build_ending() -> void:
 	ending_overlay = Control.new()
-
 	ending_overlay.name = "EndingOverlay"
 
 	add_child(ending_overlay)
@@ -1123,17 +1050,11 @@ func _build_ending() -> void:
 		Control.MOUSE_FILTER_STOP
 	)
 
-	# Full-screen cinematic background
 	var backdrop: CinematicSpace = CinematicSpace.new()
-
 	backdrop.name = "CinematicBackground"
 	backdrop.size = SCREEN_SIZE
 
 	ending_overlay.add_child(backdrop)
-
-	# -----------------------------------------
-	# CINEMATIC TITLE
-	# -----------------------------------------
 
 	_label(
 		ending_overlay,
@@ -1162,28 +1083,17 @@ func _build_ending() -> void:
 		WHITE
 	)
 
-	# Short decorative line under title
 	var accent_line: ColorRect = ColorRect.new()
-
 	accent_line.position = Vector2(39, 137)
 	accent_line.size = Vector2(220, 2)
 	accent_line.color = ACCENT
-
 	accent_line.mouse_filter = (
 		Control.MOUSE_FILTER_IGNORE
 	)
 
 	ending_overlay.add_child(accent_line)
 
-	# -----------------------------------------
-	# JOE PENG - FOREGROUND
-	# -----------------------------------------
-
 	_create_ending_joe()
-
-	# -----------------------------------------
-	# JOE'S CLOSING DIALOGUE
-	# -----------------------------------------
 
 	_panel(
 		ending_overlay,
@@ -1220,10 +1130,6 @@ func _build_ending() -> void:
 		WHITE
 	)
 
-	# -----------------------------------------
-	# MATCHA - FINAL MESSAGE
-	# -----------------------------------------
-
 	_panel(
 		ending_overlay,
 		Vector2(37, 292),
@@ -1249,10 +1155,6 @@ func _build_ending() -> void:
 		WHITE
 	)
 
-	# -----------------------------------------
-	# FOOTER
-	# -----------------------------------------
-
 	_label(
 		ending_overlay,
 		"THE END",
@@ -1262,35 +1164,57 @@ func _build_ending() -> void:
 		MUTED
 	)
 
-	var return_button: Button = _button(
+	# Existing return option.
+	var debrief_button: Button = _button(
 		ending_overlay,
-		"RETURN TO DEBRIEF",
-		Vector2(399, 327),
-		Vector2(204, 27),
+		"DEBRIEF",
+		Vector2(288, 327),
+		Vector2(110, 27)
+	)
+
+	debrief_button.pressed.connect(
+		_close_ending
+	)
+
+	# NEW: return to the existing Main Menu.
+	var menu_button: Button = _button(
+		ending_overlay,
+		"MAIN MENU",
+		Vector2(405, 327),
+		Vector2(198, 27),
 		true
 	)
 
-	return_button.pressed.connect(
-		_close_ending
+	menu_button.pressed.connect(
+		_return_to_main_menu
+	)
+
+	# Black fade overlay for leaving the ending.
+	menu_fade = ColorRect.new()
+	menu_fade.name = "ReturnToMenuFade"
+	menu_fade.color = Color.BLACK
+	menu_fade.modulate.a = 0.0
+
+	menu_fade.mouse_filter = (
+		Control.MOUSE_FILTER_IGNORE
+	)
+
+	ending_overlay.add_child(menu_fade)
+
+	menu_fade.set_anchors_and_offsets_preset(
+		Control.PRESET_FULL_RECT
 	)
 
 	ending_overlay.hide()
 
-
 # ============================================================
-# JOE PENG - ANIMATED PORTRAIT
+# ANIMATED JOE
 # ============================================================
 
 func _create_ending_joe() -> void:
 	ending_joe = AnimatedSprite2D.new()
 
 	ending_joe.name = "EndingJoe"
-
-	# Position accounts for the 64x64 frame
-	# and the enlarged pixel-art sprite.
-	#
-	# Joe is positioned in the left foreground,
-	# entirely above the Matcha panel.
 	ending_joe.position = Vector2(133, 211)
 	ending_joe.scale = Vector2(2.55, 2.55)
 
@@ -1303,7 +1227,6 @@ func _create_ending_joe() -> void:
 	if _load_joe_animation():
 		return
 
-	# Static fallback
 	ending_joe.hide()
 
 	if not ResourceLoader.exists(JOE_STATIC_PATH):
@@ -1344,7 +1267,6 @@ func _load_joe_animation() -> bool:
 	if texture == null:
 		return false
 
-	# Four horizontal frames, 64x64 each.
 	if (
 		texture.get_width() < 256
 		or texture.get_height() < 64
@@ -1361,20 +1283,11 @@ func _load_joe_animation() -> bool:
 		frames.remove_animation("default")
 
 	frames.add_animation("idle")
-
-	frames.set_animation_speed(
-		"idle",
-		4.0
-	)
-
-	frames.set_animation_loop(
-		"idle",
-		true
-	)
+	frames.set_animation_speed("idle", 4.0)
+	frames.set_animation_loop("idle", true)
 
 	for i in range(4):
 		var atlas: AtlasTexture = AtlasTexture.new()
-
 		atlas.atlas = texture
 
 		atlas.region = Rect2(
@@ -1390,12 +1303,10 @@ func _load_joe_animation() -> bool:
 		)
 
 	ending_joe.sprite_frames = frames
-
 	ending_joe.play("idle")
 	ending_joe.show()
 
 	return true
-
 
 # ============================================================
 # OPEN ENDING
@@ -1416,6 +1327,13 @@ func _open_ending() -> void:
 
 	ending_overlay.modulate.a = 0.0
 
+	# Ensure the menu fade is reset if the
+	# player returns from DEBRIEF and reopens.
+	menu_fade.modulate.a = 0.0
+	menu_fade.mouse_filter = (
+		Control.MOUSE_FILTER_IGNORE
+	)
+
 	var fade: Tween = create_tween()
 
 	fade.tween_property(
@@ -1429,9 +1347,8 @@ func _open_ending() -> void:
 
 	ending_transition = false
 
-
 # ============================================================
-# CLOSE ENDING
+# RETURN TO DEBRIEF
 # ============================================================
 
 func _close_ending() -> void:
@@ -1459,6 +1376,86 @@ func _close_ending() -> void:
 	ending_open = false
 	ending_transition = false
 
+# ============================================================
+# NEW: RETURN TO MAIN MENU
+# ============================================================
+
+func _return_to_main_menu() -> void:
+	if ending_transition:
+		return
+
+	if not ending_open:
+		return
+
+	if not ResourceLoader.exists(MAIN_MENU_SCENE):
+		push_error(
+			"SPACE VAULT: Main Menu scene missing: "
+			+ MAIN_MENU_SCENE
+		)
+		return
+
+	ending_transition = true
+
+	menu_fade.modulate.a = 0.0
+
+	# Block extra button presses during fade.
+	menu_fade.mouse_filter = (
+		Control.MOUSE_FILTER_STOP
+	)
+
+	menu_fade.move_to_front()
+
+	var fade: Tween = create_tween()
+
+	fade.set_trans(
+		Tween.TRANS_SINE
+	)
+
+	fade.set_ease(
+		Tween.EASE_IN_OUT
+	)
+
+	fade.tween_property(
+		menu_fade,
+		"modulate:a",
+		1.0,
+		0.8
+	)
+
+	await fade.finished
+
+	if not is_inside_tree():
+		return
+
+	var error: Error = (
+		get_tree().change_scene_to_file(
+			MAIN_MENU_SCENE
+		)
+	)
+
+	if error != OK:
+		push_error(
+			"SPACE VAULT: Failed to return "
+			+ "to Main Menu. Error: "
+			+ str(error)
+		)
+
+		var restore: Tween = create_tween()
+
+		restore.tween_property(
+			menu_fade,
+			"modulate:a",
+			0.0,
+			0.35
+		)
+
+		await restore.finished
+
+		menu_fade.mouse_filter = (
+			Control.MOUSE_FILTER_IGNORE
+		)
+
+		ending_transition = false
 
 # ============================================================
 # BACK TO PREFLIGHT
